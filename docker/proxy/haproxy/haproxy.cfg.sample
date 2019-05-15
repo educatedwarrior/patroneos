@@ -13,30 +13,23 @@ defaults
     timeout server 50000ms
     option forwardfor
 
-userlist UsersFor_Chain
-  user chain insecure-password pw4chain
-
-userlist UsersFor_History
-  user history insecure-password pw4history
-
-userlist UsersFor_Net
-  user net insecure-password pw4net
 
 frontend web
     bind *:443 ssl crt /usr/local/etc/haproxy/ssl.pem
-    acl chain path_beg -i /v1/chain
-    acl history path_beg -i /v1/history
-    acl net path_beg -i /v1/net
-    acl auth_ok_Chain http_auth(UsersFor_Chain)
-    acl auth_ok_History http_auth(UsersFor_History)
-    acl auth_ok_Net http_auth(UsersFor_Net)
-    http-request auth if chain !auth_ok_Chain
-    http-request auth if history !auth_ok_History
-    http-request auth if net !auth_ok_Net
-    default_backend filters
+    
+    # Define ACL based on path 
+    acl v1_in_uri path_beg -i /v1/chain
+
+    # Special route for api requests
+    use_backend filters if v1_in_uri
+
+    default_backend bpwebsite
 
 backend filters
-    server filter1 tlos_filter_prod:8081
+    server filter1 localhost:8081
+
+backend bpwebsite
+    server apache 188.40.217.66:80
 
 listen stats
     bind :9999

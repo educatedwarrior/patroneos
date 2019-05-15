@@ -1,29 +1,81 @@
-version: "3"
+version: "3.3"
+
+networks:
+  tlos_prod: 
+    external:
+      name: telosdocker_tlos-p2p-prod-net
+  eos_prod:
+    external:
+      name: eosiodocker_p2p-prod-net
 
 services:
-    proxy:
-        build:
-            context: .
-            dockerfile: docker/proxy/Dockerfile
-        ports:
-            - "443:443"
-            - "8080:8080"
-            - "9999:9999"
-        privileged: true
-        network_mode: "host"
-    filter:
-        build:
-            context: .
-            dockerfile: docker/filter/Dockerfile
-        ports:
-            - "8081:8081"
-        network_mode: "host"
-    nodeos:
-        image: eosio/eos
-        command: /opt/eosio/bin/nodeosd.sh -e --data-dir /opt/eosio/bin/data-dir --http-alias=localhost:8888
-        ports:
-            - "8888:8888"
-            - "9876:9876"
-        expose:
-            - "8888"        
+
+  eos_proxy_prod:
+    build:
+        context: .
+        dockerfile: docker/proxy/Dockerfile
+    depends_on:
+      - eos_filter_prod
+    environment:
+      - LOG_ENDPOINT=eos_proxy_prod:8080
+      - FILTER_ENDPOINT=eos_filter_prod:8081
+      - NODEOS_URL=api1_csx_prod
+    ports:
+      - "${VLAN1_IP01}:443:443"
+    privileged: true
+    networks:
+      - eos_prod
+    volumes:
+      # SSL Cert Location
+      - /etc/letsencrypt/live/csx.io:/opt/certs
+
+  eos_filter_prod:
+    build:
+      context: .
+      dockerfile: docker/filter/Dockerfile
+    environment:
+      - LOG_ENDPOINT=eos_proxy_prod:8080
+      - FILTER_ENDPOINT=eos_filter_prod:8081
+      - NODEOS_URL=api1_csx_prod
+    networks:
+      - eos_prod
+
+
+
+  tlos_proxy_prod:
+    build:
+        context: .
+        dockerfile: docker/proxy/Dockerfile
+    depends_on:
+      - tlos_filter_prod
+    environment:
+      - LOG_ENDPOINT=tlos_proxy_prod:8080
+      - FILTER_ENDPOINT=tlos_filter_prod:8081
+      - NODEOS_URL=api2_csx_prod
+    ports:
+      - "${VLAN1_IP02}:443:443"
+#      - "188.40.217.66:8080:8080"
+#      - "188.40.217.66:9999:9999"
+    privileged: true
+    networks:
+      - tlos_prod
+    volumes:
+      #- proxy_haproxy:/usr/local/etc/haproxy
+      #- proxy_patroneos:/etc/patroneos
+      # SSL Cert Location
+      - /etc/letsencrypt/live/csx.io:/opt/certs
+
+  tlos_filter_prod:
+    build:
+      context: .
+      dockerfile: docker/filter/Dockerfile
+    environment:
+      - LOG_ENDPOINT=tlos_proxy_prod:8080
+      - FILTER_ENDPOINT=tlos_filter_prod:8081
+      - NODEOS_URL=api2_csx_prod
+    #ports:
+    #  - "188.40.217.66:8081:8081"
+    networks:
+      - tlos_prod 
+
 
